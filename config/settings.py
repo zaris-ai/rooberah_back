@@ -28,6 +28,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     ".vercel.app",
+    "65.109.179.188"
 ]
 
 # Application definition
@@ -134,12 +135,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://parking-miniapp-soniya-anvari-soniya-anvaris-projects.vercel.app",
+    "http://65.109.179.188",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://parking-miniapp-soniya-anvari-soniya-anvaris-projects.vercel.app",
+    "http://65.109.179.188",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
