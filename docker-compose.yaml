@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  back:
+    build:
+        context: .
+        dockerfile: Dockerfile
+    #image: registry.zaris-dev.ir/roberah/back:v0.0.2
+    container_name: roberah-back
+    command: sh -c "python manage.py migrate --no-input && python manage.py collectstatic --no-input && gunicorn -b 0.0.0.0:8000 config.wsgi:application --workers 3 --timeout 120"
+    ports:
+      - 8005:8000
+    volumes:
+      - /var/www/rooberah/back:/home/app/parking
+      - /var/www/rooberah/back/staticfiles:/home/app/parking/staticfiles
+      - /var/www/rooberah/back/media:/home/app/parking/media
+    env_file:
+      - .env
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
