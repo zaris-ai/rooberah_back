@@ -28,7 +28,9 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     ".vercel.app",
-    "65.109.179.188"
+    "65.109.179.188",
+    "rooberah.avidflow.ir",
+    "api.rooberah.avidflow.ir"
 ]
 
 # Application definition
@@ -136,6 +138,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "https://parking-miniapp-soniya-anvari-soniya-anvaris-projects.vercel.app",
     "http://65.109.179.188",
+    "https://rooberah.avidflow.ir",
+    "https://api.rooberah.avidflow.ir"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -143,6 +147,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "https://parking-miniapp-soniya-anvari-soniya-anvaris-projects.vercel.app",
     "http://65.109.179.188",
+    "https://rooberah.avidflow.ir",
+    "https://api.rooberah.avidflow.ir"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
