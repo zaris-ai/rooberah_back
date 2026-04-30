@@ -10,12 +10,15 @@ try:
 except ImportError:
     load_dotenv = None
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 if load_dotenv:
     load_dotenv(BASE_DIR / ".env")
 
+
+# =========================
+# Core
+# =========================
 
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
@@ -28,52 +31,64 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     ".vercel.app",
-    "65.109.179.188",
     "rooberah.avidflow.ir",
-    "api.rooberah.avidflow.ir"
+    "api.rooberah.avidflow.ir",
 ]
 
-# Application definition
+
+# =========================
+# Applications
+# =========================
 
 INSTALLED_APPS = [
-    # Django apps
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    # whitenoise.runserver_nostatic must come before django.contrib.staticfiles
+
+    # whitenoise must be before staticfiles
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
 
-    # Third-party apps
+    # third party
     "rest_framework",
     "corsheaders",
 
-    # Local apps
+    # local
     "parking.apps.ParkingConfig",
-    
 ]
+
+
+# =========================
+# Middleware
+# =========================
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+
+# =========================
+# URLs / Templates
+# =========================
 
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -88,9 +103,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
+# =========================
 # Database
-# برای production بهتر است همین را به PostgreSQL/Neon وصل کنی.
-# اگر env ست نشده باشد، موقتاً SQLite استفاده می‌شود.
+# =========================
 
 if os.getenv("POSTGRES_DB"):
     DATABASES = {
@@ -115,12 +130,13 @@ else:
     }
 
 
-# Django REST Framework
+# =========================
+# REST Framework
+# =========================
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
     ],
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
@@ -130,63 +146,52 @@ REST_FRAMEWORK = {
 }
 
 
-# CORS
-# React Mini App local + Vercel
+# =========================
+# CORS (CRITICAL FIX)
+# =========================
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://parking-miniapp-soniya-anvari-soniya-anvaris-projects.vercel.app",
-    "http://65.109.179.188",
-    "https://rooberah.avidflow.ir",
-    "https://api.rooberah.avidflow.ir"
+from corsheaders.defaults import default_headers
+
+# برای لوکال تست
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_CREDENTIALS = True
+
+# چون header سفارشی داریم
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-telegram-init-data",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://parking-miniapp-soniya-anvari-soniya-anvaris-projects.vercel.app",
-    "http://65.109.179.188",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "https://rooberah.avidflow.ir",
-    "https://api.rooberah.avidflow.ir"
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-
-# Password validation
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    "https://api.rooberah.avidflow.ir",
 ]
 
 
+# =========================
 # Internationalization
+# =========================
 
 LANGUAGE_CODE = "fa-ir"
-
 TIME_ZONE = "Asia/Tehran"
 
 USE_I18N = True
-
 USE_TZ = True
 
 
-# Static files
+# =========================
+# Static / Media
+# =========================
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 STORAGES = {
     "default": {
@@ -197,13 +202,12 @@ STORAGES = {
     },
 }
 
-# Media files
 
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-
-# Default primary key field type
+# =========================
+# Misc
+# =========================
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Telegram
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
