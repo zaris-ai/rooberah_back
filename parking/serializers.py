@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import ParkingUnit, ParkingSpot, ParkingSession
+from .models import WeekMenu, FoodReservation
 
 
 class ParkingUnitSerializer(serializers.ModelSerializer):
@@ -39,3 +40,58 @@ class ActiveParkingSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParkingSession
         fields = ["spotCode", "unitTitle", "enteredAt"]
+
+
+class WeekMenuSerializer(serializers.ModelSerializer):
+    dayOfWeek = serializers.CharField(source="day_of_week")
+    weekStartDate = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WeekMenu
+        fields = (
+            "id",
+            "dayOfWeek",
+            "food1",
+            "food2",
+            "weekStartDate",
+        )
+
+    def get_weekStartDate(self, obj):
+        return obj.week_start_date.isoformat() if obj.week_start_date else None
+
+
+class FoodReservationSerializer(serializers.ModelSerializer):
+    telegramUserId = serializers.CharField(source="telegram_user_id")
+    dayOfWeek = serializers.CharField(source="day_of_week")
+    foodSlot = serializers.CharField(source="food_slot")
+    portionType = serializers.CharField(source="portion_type")
+    portionLabel = serializers.CharField(source="portion_label")
+    portionQty = serializers.SerializerMethodField()
+    reservedAt = serializers.SerializerMethodField()
+    weekStartDate = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FoodReservation
+        fields = (
+            "id",
+            "telegramUserId",
+            "dayOfWeek",
+            "food",
+            "foodSlot",
+            "portionType",
+            "portionLabel",
+            "portionQty",
+            "reservedAt",
+            "weekStartDate",
+        )
+
+    def get_portionQty(self, obj):
+        if obj.portion_qty is None:
+            return 1
+        return float(obj.portion_qty)
+
+    def get_reservedAt(self, obj):
+        return obj.reserved_at.isoformat() if obj.reserved_at else None
+
+    def get_weekStartDate(self, obj):
+        return obj.week_start_date.isoformat() if obj.week_start_date else None

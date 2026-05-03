@@ -107,6 +107,31 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # =========================
 
+#if os.getenv("POSTGRES_DB"):
+#    DATABASES = {
+ #       "default": {
+  #          "ENGINE": "django.db.backends.postgresql",
+   #         "NAME": os.getenv("POSTGRES_DB"),
+    #        "USER": os.getenv("POSTGRES_USER"),
+     #       "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+   #         "HOST": os.getenv("POSTGRES_HOST"),
+   #         "PORT": os.getenv("POSTGRES_PORT", "5432"),
+   #         "OPTIONS": {
+   #             "sslmode": os.getenv("POSTGRES_SSLMODE", "require"),
+   #         },
+   #     }
+   # }
+#else:
+#    DATABASES = {
+#        "default": {
+#            "ENGINE": "django.db.backends.sqlite3",
+#            "NAME": BASE_DIR / "db.sqlite3",
+ #       }
+ #   }
+# =========================
+# Database
+# =========================
+
 if os.getenv("POSTGRES_DB"):
     DATABASES = {
         "default": {
@@ -116,8 +141,17 @@ if os.getenv("POSTGRES_DB"):
             "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
             "HOST": os.getenv("POSTGRES_HOST"),
             "PORT": os.getenv("POSTGRES_PORT", "5432"),
+
+            "CONN_MAX_AGE": 0,
+            "CONN_HEALTH_CHECKS": True,
+
             "OPTIONS": {
                 "sslmode": os.getenv("POSTGRES_SSLMODE", "require"),
+                "connect_timeout": 10,
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
             },
         }
     }
@@ -152,7 +186,6 @@ REST_FRAMEWORK = {
 
 from corsheaders.defaults import default_headers
 
-# برای لوکال تست
 CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
@@ -160,6 +193,7 @@ CORS_ALLOW_CREDENTIALS = True
 # چون header سفارشی داریم
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-telegram-init-data",
+    "x-dev-telegram-user-id",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -211,3 +245,4 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Telegram
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_AUTH_DEV_BYPASS = DEBUG
