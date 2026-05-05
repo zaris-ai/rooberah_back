@@ -348,6 +348,10 @@ class WorkStatusAdmin(admin.ModelAdmin):
 
         return super().get_inline_instances(request, obj)
 
+from django.contrib import admin
+from .models import WeekMenu
+
+
 @admin.register(WeekMenu)
 class WeekMenuAdmin(admin.ModelAdmin):
     list_display = (
@@ -356,6 +360,7 @@ class WeekMenuAdmin(admin.ModelAdmin):
         "day_of_week",
         "food1",
         "food2",
+        "food3",
     )
 
     list_filter = (
@@ -367,25 +372,15 @@ class WeekMenuAdmin(admin.ModelAdmin):
         "day_of_week",
         "food1",
         "food2",
+        "food3",
     )
 
-    ordering = (
-        "-week_start_date",
-        "id",
-    )
-
-    fieldsets = (
-        (
-            "اطلاعات برنامه غذایی",
-            {
-                "fields": (
-                    "week_start_date",
-                    "day_of_week",
-                    "food1",
-                    "food2",
-                )
-            },
-        ),
+    fields = (
+        "week_start_date",
+        "day_of_week",
+        "food1",
+        "food2",
+        "food3",
     )
 
 
@@ -459,4 +454,57 @@ class FoodReservationAdmin(admin.ModelAdmin):
                 )
             },
         ),
+    )
+from .models import FoodReservationSettings
+
+
+@admin.register(FoodReservationSettings)
+class FoodReservationSettingsAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "cutoff_hour",
+        "cutoff_minute",
+        "is_active",
+        "updated_at",
+    )
+    list_display_links = ("id",)
+    list_editable = (
+        "cutoff_hour",
+        "cutoff_minute",
+        "is_active",
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        if FoodReservationSettings.objects.exists():
+            return False
+        return super().has_add_permission(request)
+from .models import DepartmentTeam
+
+
+@admin.register(DepartmentTeam)
+class DepartmentTeamAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "title",
+        "code",
+        "is_active",
+        "sort_order",
+        "updated_at",
+    )
+    list_display_links = ("id", "title")
+    list_editable = (
+        "is_active",
+        "sort_order",
+    )
+    search_fields = (
+        "title",
+        "code",
+    )
+    list_filter = (
+        "is_active",
+    )
+    readonly_fields = (
+        "created_at",
+        "updated_at",
     )

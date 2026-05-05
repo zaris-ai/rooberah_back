@@ -19,6 +19,7 @@ from .models import (
     ParkingSession,
     WeekMenu,
     FoodReservation,
+    FoodReservationSettings,
 )
 
 from .serializers import (
@@ -80,10 +81,7 @@ def verify_telegram_init_data(init_data: str):
 
 
 def get_dev_telegram_user_id(request):
-    """
-    فقط برای تست لوکال/مرورگر.
-    در production با DEBUG=False غیرفعال می‌شود.
-    """
+   
     if not settings.DEBUG:
         return None
 
@@ -403,8 +401,31 @@ PORTION_META = {
     },
 }
 
-FOOD_MODIFY_CUTOFF_HOUR = 19
-FOOD_MODIFY_CUTOFF_MINUTE = 0
+DEFAULT_FOOD_MODIFY_CUTOFF_HOUR = 19
+DEFAULT_FOOD_MODIFY_CUTOFF_MINUTE = 0
+
+
+def get_food_modify_cutoff():
+    settings_row = (
+        FoodReservationSettings.objects
+        .filter(is_active=True)
+        .order_by("-id")
+        .first()
+    )
+
+    if not settings_row:
+        return DEFAULT_FOOD_MODIFY_CUTOFF_HOUR, DEFAULT_FOOD_MODIFY_CUTOFF_MINUTE
+
+    cutoff_hour = int(settings_row.cutoff_hour)
+    cutoff_minute = int(settings_row.cutoff_minute)
+
+    if cutoff_hour < 0 or cutoff_hour > 23:
+        cutoff_hour = DEFAULT_FOOD_MODIFY_CUTOFF_HOUR
+
+    if cutoff_minute < 0 or cutoff_minute > 59:
+        cutoff_minute = DEFAULT_FOOD_MODIFY_CUTOFF_MINUTE
+
+    return cutoff_hour, cutoff_minute
 
 
 def normalize_day(value):
@@ -510,6 +531,8 @@ def get_food_from_menu(menu_item, food_slot):
 
     if food_slot == "f2":
         return menu_item.food2
+    if food_slot == "f3":
+        return menu_item.food3
 
     return None
 
@@ -535,16 +558,18 @@ def get_food_modify_deadline(week_start_date, day_of_week):
     if not target_date:
         return None
 
+    cutoff_hour, cutoff_minute = get_food_modify_cutoff()
+    deadline_date = target_date - timedelta(days=1)
+
     naive_deadline = datetime.combine(
-        target_date,
-        time(hour=FOOD_MODIFY_CUTOFF_HOUR, minute=FOOD_MODIFY_CUTOFF_MINUTE),
+        deadline_date,
+        time(hour=cutoff_hour, minute=cutoff_minute),
     )
 
     return timezone.make_aware(
         naive_deadline,
         timezone.get_current_timezone(),
     )
-
 
 def can_modify_food_reservation(week_start_date, day_of_week):
     target_date = get_food_target_date(week_start_date, day_of_week)
@@ -573,11 +598,12 @@ def can_modify_food_reservation(week_start_date, day_of_week):
 
 
 def get_food_deadline_message(day_of_week):
-    cutoff = f"{FOOD_MODIFY_CUTOFF_HOUR:02d}:{FOOD_MODIFY_CUTOFF_MINUTE:02d}"
+    cutoff_hour, cutoff_minute = get_food_modify_cutoff()
+    cutoff = f"{cutoff_hour:02d}:{cutoff_minute:02d}"
 
     return (
         f"مهلت ثبت، ویرایش یا لغو غذای روز {day_of_week} تمام شده است. "
-        f"بعد از ساعت {cutoff} امکان تغییر وجود ندارد."
+        f"رزرو هر روز فقط تا ساعت {cutoff} روز قبل قابل تغییر است."
     )
 
 
@@ -699,7 +725,7 @@ def upsert_food_reservation(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if food_slot not in ("f1", "f2"):
+    if food_slot not in ("f1", "f2", "f3"):
         return Response(
             {
                 "success": False,

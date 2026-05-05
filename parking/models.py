@@ -259,10 +259,12 @@ class FoodReservation(models.Model):
 
     FOOD_SLOT_1 = "f1"
     FOOD_SLOT_2 = "f2"
+    FOOD_SLOT_3 = "f3"
 
     FOOD_SLOT_CHOICES = [
         (FOOD_SLOT_1, "غذای اول"),
         (FOOD_SLOT_2, "غذای دوم"),
+        (FOOD_SLOT_3, "غذای سوم"),
     ]
 
     id = models.AutoField(primary_key=True)
@@ -298,12 +300,12 @@ class FoodReservation(models.Model):
     )
 
     food_slot = models.TextField(
-        blank=True,
-        null=True,
-        choices=FOOD_SLOT_CHOICES,
-        verbose_name="انتخاب غذا",
-        help_text="f1 یعنی غذای اول، f2 یعنی غذای دوم",
-    )
+    blank=True,
+    null=True,
+    choices=FOOD_SLOT_CHOICES,
+    verbose_name="انتخاب غذا",
+    help_text="f1 یعنی غذای اول، f2 یعنی غذای دوم، f3 یعنی غذای سوم",
+        )
 
     portion_type = models.TextField(
         choices=PORTION_CHOICES,
@@ -352,6 +354,11 @@ class WeekMenu(models.Model):
         null=True,
         verbose_name="غذای دوم",
     )
+    food3 = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="غذای سوم",
+    )
 
     week_start_date = models.DateField(
         verbose_name="تاریخ شروع هفته",
@@ -366,3 +373,88 @@ class WeekMenu(models.Model):
 
     def __str__(self):
         return f"{self.week_start_date} - {self.day_of_week}"
+class FoodReservationSettings(models.Model):
+    cutoff_hour = models.PositiveSmallIntegerField(
+        default=19,
+        verbose_name="ساعت پایان امکان تغییر غذا",
+        help_text="عدد بین ۰ تا ۲۳. مثال: ۱۹ یعنی ساعت ۷ عصر.",
+    )
+
+    cutoff_minute = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name="دقیقه پایان امکان تغییر غذا",
+        help_text="عدد بین ۰ تا ۵۹.",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="فعال است؟",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="آخرین بروزرسانی",
+    )
+
+    class Meta:
+        db_table = "food_reservation_settings"
+        verbose_name = "تنظیمات رزرو غذا"
+        verbose_name_plural = "تنظیمات رزرو غذا"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.cutoff_hour > 23:
+            raise ValidationError("ساعت باید بین ۰ تا ۲۳ باشد.")
+
+        if self.cutoff_minute > 59:
+            raise ValidationError("دقیقه باید بین ۰ تا ۵۹ باشد.")
+
+    def __str__(self):
+        return f"{self.cutoff_hour:02d}:{self.cutoff_minute:02d}"
+class DepartmentTeam(models.Model):
+    code = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="کد تیم",
+        help_text="مثلاً: team_a یا sales یا support. بعد از استفاده تغییرش ندهید.",
+    )
+
+    title = models.CharField(
+        max_length=150,
+        verbose_name="عنوان تیم",
+        help_text="مثلاً: تیم فروش، تیم پشتیبانی، تیم فنی",
+    )
+
+   
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="فعال است؟",
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=100,
+        verbose_name="ترتیب نمایش",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="زمان ایجاد",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="آخرین بروزرسانی",
+    )
+
+    class Meta:
+        db_table = "department_teams"
+        ordering = ["sort_order", "id"]
+        verbose_name = "تیم"
+        verbose_name_plural = "تیم‌ها"
+
+    def __str__(self):
+        return self.title

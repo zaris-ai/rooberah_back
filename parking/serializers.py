@@ -53,6 +53,7 @@ class WeekMenuSerializer(serializers.ModelSerializer):
             "dayOfWeek",
             "food1",
             "food2",
+            "food3",
             "weekStartDate",
         )
 
