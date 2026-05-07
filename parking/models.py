@@ -47,8 +47,8 @@ class EmployeeUser(models.Model):
     class Meta:
         managed = False
         db_table = "users"
-        verbose_name = "کاربر کارمند"
-        verbose_name_plural = "کاربران کارمند"
+        verbose_name = "کاربر"
+        verbose_name_plural = "کاربران"
 
     def __str__(self):
         full_name = f"{self.first_name or ''} {self.last_name or ''}".strip()

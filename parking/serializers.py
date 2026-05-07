@@ -12,26 +12,76 @@ class ParkingUnitSerializer(serializers.ModelSerializer):
 class ParkingSpotSerializer(serializers.ModelSerializer):
     unitId = serializers.IntegerField(source="unit_id", read_only=True)
     state = serializers.SerializerMethodField()
+    occupiedByTelegramUserId = serializers.SerializerMethodField()
+    occupiedByUsername = serializers.SerializerMethodField()
+    occupiedByFirstName = serializers.SerializerMethodField()
+    occupiedByLastName = serializers.SerializerMethodField()
 
     class Meta:
         model = ParkingSpot
-        fields = ["id", "unitId", "code", "row", "col", "state"]
+        fields = [
+            "id",
+            "unitId",
+            "code",
+            "row",
+            "col",
+            "state",
+            "occupiedByTelegramUserId",
+            "occupiedByUsername",
+            "occupiedByFirstName",
+            "occupiedByLastName",
+        ]
+
+    def _get_session_data(self, spot):
+        active_sessions = self.context.get("active_sessions", {})
+        return active_sessions.get(spot.id)
 
     def get_state(self, spot):
-        active_sessions = self.context.get("active_sessions", {})
+        session_data = self._get_session_data(spot)
         current_user_id = self.context.get("telegram_user_id")
 
-        owner_id = active_sessions.get(spot.id)
-
-        if not owner_id:
+        if not session_data:
             return "free"
+
+        owner_id = session_data.get("telegram_user_id")
 
         if str(owner_id) == str(current_user_id):
             return "mine"
 
         return "occupied"
 
+    def get_occupiedByTelegramUserId(self, spot):
+        session_data = self._get_session_data(spot)
 
+        if not session_data:
+            return None
+
+        owner_id = session_data.get("telegram_user_id")
+        return str(owner_id) if owner_id else None
+
+    def get_occupiedByUsername(self, spot):
+        session_data = self._get_session_data(spot)
+
+        if not session_data:
+            return None
+
+        return session_data.get("username")
+
+    def get_occupiedByFirstName(self, spot):
+        session_data = self._get_session_data(spot)
+
+        if not session_data:
+            return None
+
+        return session_data.get("first_name")
+
+    def get_occupiedByLastName(self, spot):
+        session_data = self._get_session_data(spot)
+
+        if not session_data:
+            return None
+
+        return session_data.get("last_name")
 class ActiveParkingSessionSerializer(serializers.ModelSerializer):
     spotCode = serializers.CharField(source="spot.code")
     unitTitle = serializers.CharField(source="unit.title")

@@ -10,6 +10,13 @@ from django.urls import path
 from django.utils import timezone
 from django.template.response import TemplateResponse
 
+
+from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.urls import path, reverse
+from django.utils.html import format_html
+
+
 from .models import (
     DepartmentTeam,
     EmployeeUser,
@@ -383,10 +390,6 @@ class ParkingSpotAdmin(admin.ModelAdmin):
     )
 
 
-# =========================
-# Parking Session
-# =========================
-
 @admin.register(ParkingSession)
 class ParkingSessionAdmin(admin.ModelAdmin):
     list_display = (
@@ -398,6 +401,7 @@ class ParkingSessionAdmin(admin.ModelAdmin):
         "entered_at_jalali",
         "exited_at_jalali",
         "session_status",
+        "exit_button",
     )
 
     list_filter = (
@@ -420,6 +424,10 @@ class ParkingSessionAdmin(admin.ModelAdmin):
         "entered_at_jalali",
         "exited_at_jalali",
         "session_status",
+    )
+
+    actions = (
+        "mark_selected_sessions_exited",
     )
 
     ordering = (
@@ -458,6 +466,72 @@ class ParkingSessionAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_urls(self):
+        urls = super().get_urls()
+
+        custom_urls = [
+            path(
+                "<int:session_id>/mark-exit/",
+                self.admin_site.admin_view(self.mark_exit_view),
+                name="parking_parkingsession_mark_exit",
+            ),
+        ]
+
+        return custom_urls + urls
+
+    def mark_exit_view(self, request, session_id):
+        session = ParkingSession.objects.filter(id=session_id).first()
+
+        if not session:
+            self.message_user(
+                request,
+                "این رکورد پارکینگ پیدا نشد.",
+                level=messages.ERROR,
+            )
+            return redirect("..")
+
+        if session.exited_at:
+            self.message_user(
+                request,
+                "خروج این کاربر قبلاً ثبت شده است.",
+                level=messages.WARNING,
+            )
+            return redirect("..")
+
+        session.exited_at = timezone.now()
+        session.save(update_fields=["exited_at"])
+
+        self.message_user(
+            request,
+            f"خروج کاربر {get_employee_display_name(session.telegram_user_id)} از جایگاه {session.spot.code} ثبت شد و جایگاه آزاد شد.",
+            level=messages.SUCCESS,
+        )
+
+        return redirect(
+            request.META.get(
+                "HTTP_REFERER",
+                reverse("admin:parking_parkingsession_changelist"),
+            )
+        )
+
+    @admin.action(description="ثبت خروج برای sessionهای انتخاب‌شده")
+    def mark_selected_sessions_exited(self, request, queryset):
+        active_queryset = queryset.filter(exited_at__isnull=True)
+        count = active_queryset.update(exited_at=timezone.now())
+
+        if count:
+            self.message_user(
+                request,
+                f"خروج {to_persian_digits(count)} مورد ثبت شد و جایگاه‌ها آزاد شدند.",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                "هیچ session فعالی برای ثبت خروج انتخاب نشده بود.",
+                level=messages.WARNING,
+            )
+
     @admin.display(description="نام کاربر")
     def employee_name(self, obj):
         return get_employee_display_name(obj.telegram_user_id)
@@ -480,6 +554,23 @@ class ParkingSessionAdmin(admin.ModelAdmin):
             return "خارج شده"
         return "داخل پارکینگ"
 
+    @admin.display(description="عملیات")
+    def exit_button(self, obj):
+        if obj.exited_at:
+            return "—"
+
+        url = reverse(
+            "admin:parking_parkingsession_mark_exit",
+            args=[obj.id],
+        )
+
+        return format_html(
+            '<a class="button" href="{}" '
+            'style="background:#d9534f;color:white;padding:6px 12px;'
+            'border-radius:8px;text-decoration:none;font-weight:bold;display:block;">'
+            'ثبت خروج</a>',
+            url,
+        )
 
 # =========================
 # Work Status
@@ -939,3 +1030,225 @@ class DepartmentTeamAdmin(admin.ModelAdmin):
         "sort_order",
         "id",
     )
+# =========================
+# Employee Users
+# =========================
+
+class EmployeeUserAdminForm(forms.ModelForm):
+    ACCESS_LEVEL_CHOICES = (
+        ("", "—"),
+        ("user", "کاربر"),
+        ("admin", "ادمین"),
+    )
+
+    STATUS_CHOICES = (
+        ("pending", "در انتظار تایید"),
+        ("approved", "تایید شده"),
+        ("rejected", "رد شده"),
+    )
+
+    access_level = forms.ChoiceField(
+        choices=ACCESS_LEVEL_CHOICES,
+        required=False,
+        label="سطح دسترسی",
+    )
+
+    status = forms.ChoiceField(
+        choices=STATUS_CHOICES,
+        required=True,
+        label="وضعیت تایید",
+    )
+
+    department = forms.ChoiceField(
+        choices=(),
+        required=False,
+        label="تیم",
+    )
+
+    class Meta:
+        model = EmployeeUser
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        team_choices = [("", "—")]
+
+        for team in DepartmentTeam.objects.filter(is_active=True).order_by(
+            "sort_order",
+            "id",
+        ):
+            if team.code:
+                team_choices.append((team.code, team.title))
+
+        self.fields["department"].choices = team_choices
+
+
+@admin.register(EmployeeUser)
+class EmployeeUserAdmin(admin.ModelAdmin):
+    form = EmployeeUserAdminForm
+
+    list_display = (
+        "id",
+        "display_name",
+        "telegram_user_id",
+        "telegram_username",
+        "status",
+        "access_level",
+        "admin_badge",
+        "department_title",
+    )
+
+    list_display_links = (
+        "id",
+        "display_name",
+    )
+
+    # فقط این دو را مستقیم از جدول تغییر بده.
+    # department را از صفحه جزئیات تغییر بده تا ارور admin.E122 نگیری.
+    list_editable = (
+        "status",
+        "access_level",
+    )
+
+    list_filter = (
+        "status",
+        "access_level",
+        "department",
+    )
+
+    search_fields = (
+        "telegram_user_id",
+        "username",
+        "first_name",
+        "last_name",
+        "department",
+    )
+
+    readonly_fields = (
+        "telegram_user_id",
+        "username",
+        "first_name",
+        "last_name",
+    )
+
+    ordering = (
+        "-access_level",
+        "status",
+        "department",
+        "id",
+    )
+
+    list_per_page = 50
+
+    actions = (
+        "make_selected_admins",
+        "make_selected_users",
+        "approve_selected_users",
+    )
+
+    fieldsets = (
+        (
+            "اطلاعات تلگرام",
+            {
+                "fields": (
+                    "telegram_user_id",
+                    "username",
+                    "first_name",
+                    "last_name",
+                )
+            },
+        ),
+        (
+            "دسترسی و تایید",
+            {
+                "fields": (
+                    "status",
+                    "access_level",
+                    "department",
+                )
+            },
+        ),
+    )
+
+    @admin.display(description="نام")
+    def display_name(self, obj):
+        full_name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+
+        if full_name:
+            return full_name
+
+        if obj.username:
+            username = str(obj.username).strip()
+            return username if username.startswith("@") else f"@{username}"
+
+        return str(obj.telegram_user_id)
+
+    @admin.display(description="یوزرنیم تلگرام")
+    def telegram_username(self, obj):
+        if not obj.username:
+            return "—"
+
+        username = str(obj.username).strip()
+        return username if username.startswith("@") else f"@{username}"
+
+    @admin.display(description="ادمین؟")
+    def admin_badge(self, obj):
+        if obj.access_level == "admin":
+            return "✅ ادمین"
+
+        return "—"
+
+    @admin.display(description="تیم")
+    def department_title(self, obj):
+        if not obj.department:
+            return "—"
+
+        team = DepartmentTeam.objects.filter(code=obj.department).first()
+
+        if team:
+            return team.title
+
+        return obj.department
+
+    @admin.action(description="تبدیل کاربران انتخاب‌شده به ادمین")
+    def make_selected_admins(self, request, queryset):
+        count = queryset.update(
+            access_level="admin",
+            status="approved",
+        )
+
+        self.message_user(
+            request,
+            f"{to_persian_digits(count)} کاربر به ادمین تبدیل شد.",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="تبدیل کاربران انتخاب‌شده به کاربر عادی")
+    def make_selected_users(self, request, queryset):
+        count = queryset.update(
+            access_level="user",
+            status="approved",
+        )
+
+        self.message_user(
+            request,
+            f"{to_persian_digits(count)} کاربر به کاربر عادی تبدیل شد.",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="تایید کاربران انتخاب‌شده")
+    def approve_selected_users(self, request, queryset):
+        count = queryset.update(
+            status="approved",
+        )
+
+        self.message_user(
+            request,
+            f"{to_persian_digits(count)} کاربر تایید شد.",
+            level=messages.SUCCESS,
+        )
+
+    def has_add_permission(self, request):
+        # کاربرها باید از بات / مینی‌اپ ساخته شوند، نه دستی از پنل.
+        return False

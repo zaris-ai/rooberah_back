@@ -187,19 +187,44 @@ def list_spots(request, unit_id):
 
     spots = ParkingSpot.objects.filter(unit=unit, is_active=True)
 
-    active_sessions = {
-        session.spot_id: session.telegram_user_id
-        for session in ParkingSession.objects.filter(
+    active_session_rows = list(
+        ParkingSession.objects.filter(
             unit=unit,
             exited_at__isnull=True,
         )
+    )
+
+    owner_ids = [
+        str(session.telegram_user_id)
+        for session in active_session_rows
+        if session.telegram_user_id
+    ]
+
+    users_by_telegram_id = {
+        str(user.telegram_user_id): user
+        for user in EmployeeUser.objects.filter(
+            telegram_user_id__in=owner_ids,
+        )
     }
+
+    active_sessions = {}
+
+    for session in active_session_rows:
+        owner_id = str(session.telegram_user_id)
+        owner = users_by_telegram_id.get(owner_id)
+
+        active_sessions[session.spot_id] = {
+            "telegram_user_id": owner_id,
+            "username": owner.username if owner else None,
+            "first_name": owner.first_name if owner else None,
+            "last_name": owner.last_name if owner else None,
+        }
 
     serializer = ParkingSpotSerializer(
         spots,
         many=True,
         context={
-            "telegram_user_id": telegram_user_id,
+            "telegram_user_id": str(telegram_user_id),
             "active_sessions": active_sessions,
         },
     )
@@ -211,8 +236,6 @@ def list_spots(request, unit_id):
             "spots": serializer.data,
         }
     )
-
-
 @api_view(["GET"])
 def active_session(request):
     telegram_user_id, error_response = require_approved_user(request)
